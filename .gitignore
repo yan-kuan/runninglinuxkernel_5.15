@@ -84,3 +84,13 @@ GTAGS
 *.orig
 *~
 \#*#
+
+
+# Addition
+
+*.dtb
+*.mod
+*.lex.*
+*.tab.*
+
+_install_arm64/*
