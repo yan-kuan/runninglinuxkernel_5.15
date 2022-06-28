@@ -43,6 +43,9 @@
 #include <asm/ptrace.h>
 #include <asm/spectre.h>
 #include <asm/types.h>
+#ifdef CONFIG_KERNEL_MODE_LINUX
+#include <linux/thread_info.h>
+#endif
 
 /*
  * TASK_SIZE - the maximum size of a user space task.
@@ -202,6 +205,26 @@ void tls_preserve_current_state(void);
 	.fpsimd_cpu = NR_CPUS,			\
 }
 
+#ifdef CONFIG_KERNEL_MODE_LINUX
+static inline void clear_thread_flag_ku(void)
+{
+	clear_thread_flag(TIF_KU);
+}
+static inline void set_thread_flag_ku(void)
+{
+	set_thread_flag(TIF_KU);
+}
+#else
+static inline void clear_thread_flag_ku(void)
+{
+	return;
+}
+static inline void set_thread_flag_ku(void)
+{
+	return;
+}
+#endif
+
 static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
 {
 	memset(regs, 0, sizeof(*regs));
@@ -219,7 +242,22 @@ static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 	regs->pstate = PSR_MODE_EL0t;
 	spectre_v4_enable_task_mitigation(current);
 	regs->sp = sp;
+#ifdef CONFIG_KERNEL_MODE_LINUX
+	clear_thread_flag_ku();
+#endif
 }
+
+#ifdef CONFIG_KERNEL_MODE_LINUX
+static inline void start_kernel_thread(struct pt_regs *regs, unsigned long pc,
+				       unsigned long sp)
+{
+	start_thread_common(regs, pc);
+	regs->pstate = PSR_MODE_EL1h;
+	spectre_v4_enable_task_mitigation(current);
+	regs->sp = sp;
+	set_thread_flag_ku();
+}
+#endif
 
 #ifdef CONFIG_COMPAT
 static inline void compat_start_thread(struct pt_regs *regs, unsigned long pc,
